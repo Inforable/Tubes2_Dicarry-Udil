@@ -1,0 +1,31 @@
+# Dataset image folders
+data/intel/train/
+data/intel/val/
+data/intel/test/
+data/flickr8k/images/
+
+# Large generated files
+data/flickr8k/features.npy
+data/flickr8k/features_index.json
+
+# All trained weight files
+weights/**/*.h5
+weights/**/*.npy
+!weights/**/.gitkeep
+
+# Standard Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+.env
+venv/
+.venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+Spesifikasi-Tugas-Besar-2-IF3270-Pembelajaran-Mesin.pdf
