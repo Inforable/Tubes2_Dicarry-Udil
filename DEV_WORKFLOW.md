@@ -2,8 +2,8 @@
 
 ## Team Members
 - Member A (NIM: 18223121)
-- Member B (NIM: 13523160)
-- Member C (NIM: 13523156)
+- Member B (NIM: 13523156/13523160)
+- Member C (NIM: 13523156/13523160)
 
 ## Work Distribution
 
