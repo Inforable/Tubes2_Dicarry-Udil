@@ -4,6 +4,7 @@ data/intel/val/
 data/intel/test/
 data/flickr8k/images/
 data/flickr8k/captions.txt
+Archive.zip
 
 # Large generated files
 data/flickr8k/features.npy
