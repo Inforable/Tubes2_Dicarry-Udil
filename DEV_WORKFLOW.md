@@ -2,8 +2,8 @@
 
 ## Team Members
 - Member A (NIM: 18223121)
-- Member B (NIM: 13523156/13523160)
-- Member C (NIM: 13523156/13523160)
+- Member B (NIM: 13523160)
+- Member C (NIM: 13523156)
 
 ## Work Distribution
 
@@ -29,11 +29,11 @@ Responsible for the entirety of Track A (CNN Image Classification).
 Responsible for the RNN decoder pipeline in Track B.
 
 **Primary deliverables:**
-1. `src/captioning/preprocessing.py` — full caption preprocessing pipeline (tokenization, vocab building, padding)
-2. `src/captioning/layers_rnn.py` — EmbeddingLayer and SimpleRNNCell from-scratch implementations
-3. `src/captioning/model_rnn.py` — RNNCaptioner class (full pipeline from image path to caption string)
-4. `src/captioning/train_rnn.ipynb` — 6+ RNN training runs, weight saving
-5. `src/captioning/evaluate_rnn.ipynb` — BLEU-4, METEOR, Keras vs scratch comparison for RNN
+1. `src/captioning/common/preprocessing.py` — full caption preprocessing pipeline (tokenization, vocab building, padding)
+2. `src/captioning/rnn/layers.py` — EmbeddingLayer and SimpleRNNCell from-scratch implementations
+3. `src/captioning/rnn/model.py` — RNNCaptioner class (full pipeline from image path to caption string)
+4. `src/captioning/rnn/train.ipynb` — 6+ RNN training runs, weight saving
+5. `src/captioning/rnn/evaluate.ipynb` — BLEU-4, METEOR, Keras vs scratch comparison for RNN
 6. RNN sections of the final report
 
 **Dependency note:** Member B requires `data/flickr8k/features.npy` (produced by Member C) before training can begin. Preprocessing and layer implementation can be done in parallel.
@@ -45,12 +45,12 @@ Responsible for the RNN decoder pipeline in Track B.
 Responsible for the LSTM decoder pipeline and the shared CNN encoder for Track B.
 
 **Primary deliverables:**
-1. `src/captioning/feature_extraction.py` — pretrained CNN encoder setup and feature extraction for all Flickr8k images, saves `features.npy` and `features_index.json`
+1. `src/captioning/common/feature_extraction.py` — pretrained CNN encoder setup and feature extraction for all Flickr8k images, saves `features.npy` and `features_index.json`
 2. `src/shared/dense.py` — Dense layer from-scratch (ported from Tubes 1)
-3. `src/captioning/layers_lstm.py` — LSTMCell, DenseProjection, DenseOutput from-scratch implementations
-4. `src/captioning/model_lstm.py` — LSTMCaptioner class
-5. `src/captioning/train_lstm.ipynb` — 6+ LSTM training runs, weight saving
-6. `src/captioning/evaluate_lstm.ipynb` — BLEU-4, METEOR, Keras vs scratch comparison for LSTM, qualitative analysis (10 example images with RNN vs LSTM vs ground truth captions), max caption length experiments
+3. `src/captioning/lstm/layers.py" — LSTMCell, DenseProjection, DenseOutput from-scratch implementations
+4. `src/captioning/lstm/model.py` — LSTMCaptioner class
+5. `src/captioning/lstm/train.ipynb` — 6+ LSTM training runs, weight saving
+6. `src/captioning/lstm/evaluate.ipynb` — BLEU-4, METEOR, Keras vs scratch comparison for LSTM, qualitative analysis (10 example images with RNN vs LSTM vs ground truth captions), max caption length experiments
 7. LSTM sections of the final report
 
 **Dependency note:** Member C must complete feature extraction as the absolute first priority — both Member B and Member C's training pipelines depend on `features.npy`.
@@ -67,24 +67,24 @@ Responsible for the LSTM decoder pipeline and the shared CNN encoder for Track B
 
 ```
 Day 1-2:
-  C → feature_extraction.py + run extraction (features.npy)   ← BLOCKS B and C training
+  C → common/feature_extraction.py + run extraction (features.npy)   ← BLOCKS B and C training
   A → utils.py, activations.py
-  B → preprocessing.py (can run in parallel with C)
+  B → common/preprocessing.py (can run in parallel with C)
 
 Day 3-4:
   A → layers.py (CNN from scratch) + model.py
-  B → layers_rnn.py + model_rnn.py
-  C → layers_lstm.py + model_lstm.py + dense.py
+  B → rnn/layers.py + rnn/model.py
+  C → lstm/layers.py + lstm/model.py + dense.py
 
 Day 5:
   A → train.ipynb (16 CNN models)
-  B → train_rnn.ipynb (6+ RNN models)
-  C → train_lstm.ipynb (6+ LSTM models)
+  B → rnn/train.ipynb (6+ RNN models)
+  C → lstm/train.ipynb (6+ LSTM models)
 
 Day 6:
   A → evaluate.ipynb (CNN experiments + analysis)
-  B → evaluate_rnn.ipynb
-  C → evaluate_lstm.ipynb (including RNN vs LSTM qualitative comparison)
+  B → rnn/evaluate.ipynb
+  C → lstm/evaluate.ipynb (including RNN vs LSTM qualitative comparison)
 
 Day 7:
   All → report writing, final review, submission

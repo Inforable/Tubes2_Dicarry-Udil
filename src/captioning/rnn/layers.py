@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add src to path to import activations
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from shared.activations import tanh, softmax
 
 class EmbeddingLayer:

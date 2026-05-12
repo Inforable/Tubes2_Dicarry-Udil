@@ -6,7 +6,7 @@ from tensorflow.keras.models import Model
 import sys
 
 # Add src to path to import cnn utils
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from cnn.utils import extract_and_save_features
 
 def main():

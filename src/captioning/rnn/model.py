@@ -3,8 +3,8 @@ import sys
 import os
 
 # Add src to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from captioning.layers_rnn import EmbeddingLayer, SimpleRNNCell, RNNLayer
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from captioning.rnn.layers import EmbeddingLayer, SimpleRNNCell, RNNLayer
 from shared.dense import Dense
 
 class RNNCaptioner:
