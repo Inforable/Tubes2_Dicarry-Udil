@@ -16,7 +16,18 @@ def setup_flickr8k_dataset(zip_path="data/flickr8k/archive.zip", extract_to="dat
     new_images_dir = os.path.join(extract_to, "images")
 
     if os.path.exists(old_images_dir):
+        is_same_file = False
         if os.path.exists(new_images_dir):
+            try:
+                is_same_file = os.path.samefile(old_images_dir, new_images_dir)
+            except OSError:
+                pass
+                
+        if is_same_file:
+            temp_dir = os.path.join(extract_to, "temp_images_dir_for_rename")
+            os.rename(old_images_dir, temp_dir)
+            os.rename(temp_dir, new_images_dir)
+        elif os.path.exists(new_images_dir):
             # If "images" already exists (e.g. from previous run), merge/replace
             for item in os.listdir(old_images_dir):
                 shutil.move(os.path.join(old_images_dir, item), os.path.join(new_images_dir, item))
