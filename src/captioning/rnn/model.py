@@ -5,6 +5,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from captioning.rnn.layers import EmbeddingLayer, StackedRNN
 from shared.dense import Dense
+from captioning.common import inference as inference_utils
 
 class RNNCaptioner:
     def __init__(self, vocab_size, embed_dim, hidden_dim, max_length, num_layers=1):
@@ -52,3 +53,6 @@ class RNNCaptioner:
             result_caption.append(word)
             
         return ' '.join(result_caption)
+
+    def generate_caption_beam(self, image_features, tokenizer, beam_width=3, max_length=None):
+        return inference_utils.generate_caption_beam(self, image_features, tokenizer, beam_width=beam_width, max_length=max_length)
