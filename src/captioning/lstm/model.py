@@ -12,25 +12,41 @@ from captioning.common import model_config as model_config
 
 
 class LSTMCaptioner:
-    def __init__(self, vocab_size, embed_dim, hidden_dim, max_length, cnn_feature_dim=2048):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, max_length, num_layers=1, cnn_feature_dim=2048):
         self.vocab_size = vocab_size
         self.embed_dim = embed_dim
         self.hidden_dim = hidden_dim
         self.max_length = max_length
+        self.num_layers = num_layers
         self.cnn_feature_dim = cnn_feature_dim
 
         # Layers
         self.image_projection = Dense(cnn_feature_dim, embed_dim, activation=None)
         self.embedding = EmbeddingLayer(vocab_size, embed_dim)
-        self.lstm_cell = LSTMCell(embed_dim, hidden_dim)
-        self.lstm_layer = LSTMLayer(self.lstm_cell)
+        
+        # Create list of LSTM cells (one per layer)
+        self.lstm_cells = []
+        for i in range(num_layers):
+            input_dim = embed_dim if i == 0 else hidden_dim
+            self.lstm_cells.append(LSTMCell(input_dim, hidden_dim))
+        
         self.output_layer = Dense(hidden_dim, vocab_size, activation='softmax')
 
     def load_weights_from_keras(self, keras_model):
         """Load weights from a trained Keras model."""
         self.embedding.load_weights(keras_model.get_layer('embedding').get_weights())
         self.image_projection.load_weights(keras_model.get_layer('image_projection').get_weights())
-        self.lstm_cell.load_weights(keras_model.get_layer('lstm').get_weights())
+        
+        # Load all LSTM layers
+        lstm_layers_to_load = [layer for layer in keras_model.layers if layer.name.startswith('lstm_')]
+        if len(lstm_layers_to_load) != self.num_layers:
+            raise ValueError(
+                f"Expected {self.num_layers} LSTM layers in model, but found {len(lstm_layers_to_load)}"
+            )
+        
+        for i, (lstm_cell, keras_lstm_layer) in enumerate(zip(self.lstm_cells, lstm_layers_to_load)):
+            lstm_cell.load_weights(keras_lstm_layer.get_weights())
+        
         self.output_layer.load_weights(keras_model.get_layer('dense_output').get_weights())
 
     def generate_caption_greedy(self, image_features, tokenizer, max_length=None):
@@ -49,12 +65,17 @@ class LSTMCaptioner:
         # Project CNN features ke embedding dimension
         img_embed = self.image_projection.forward(image_features)
         
-        # Initialize state
-        h = np.zeros((1, self.hidden_dim))
-        c = np.zeros((1, self.hidden_dim))
+        # Initialize hidden and cell states for all layers
+        h_states = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
+        c_states = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
         
-        # Pre-inject phase
-        h, c = self.lstm_cell.forward(img_embed, h, c)
+        # Pre-inject phase: pass CNN feature through all LSTM layers
+        x = img_embed
+        for layer_idx in range(self.num_layers):
+            h_states[layer_idx], c_states[layer_idx] = self.lstm_cells[layer_idx].forward(
+                x, h_states[layer_idx], c_states[layer_idx]
+            )
+            x = h_states[layer_idx]
         
         # Iteratively generate tokens
         result_caption = []
@@ -64,17 +85,22 @@ class LSTMCaptioner:
             # Embed current token
             x = self.embedding.forward(np.array([[curr_token]]))
             
-            # LSTM forward pass pada timestep t
-            h, c = self.lstm_cell.forward(x[:, 0, :], h, c)
+            # Pass through all LSTM layers
+            for layer_idx in range(self.num_layers):
+                x_input = x[:, 0, :] if x.ndim == 3 else x
+                h_states[layer_idx], c_states[layer_idx] = self.lstm_cells[layer_idx].forward(
+                    x_input, h_states[layer_idx], c_states[layer_idx]
+                )
+                x = h_states[layer_idx]
             
-            # Output prediction
-            preds = self.output_layer.forward(h)
+            # Output prediction from last hidden state
+            preds = self.output_layer.forward(h_states[-1])
             
             # Greedy sampling
             curr_token = np.argmax(preds[0])
             
             # Convert token index to word
-            word = tokenizer.index_word.get(str(curr_token), '')
+            word = tokenizer.index_word.get(curr_token, '')
             
             # Check stopping conditions
             if word == tokenizer.end_token or word == tokenizer.pad_token:
