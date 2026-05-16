@@ -34,7 +34,7 @@ class SimpleRNNCell:
         h_next = tanh(np.dot(x, self.W_x) + np.dot(h_prev, self.W_h) + self.b)
         return h_next
 
-class StackedRNN:
+class StackedRNNCell:
     def __init__(self, input_dim, hidden_dim, num_layers):
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
@@ -56,3 +56,24 @@ class StackedRNN:
             curr_input = h_next
             h_next_list.append(h_next)
         return h_next_list
+
+class RNNLayer:
+    def __init__(self, stacked_cell):
+        self.stacked_cell = stacked_cell
+
+    def forward(self, x, h_initial_list=None):
+        batch_size, seq_len, _ = x.shape
+        num_layers = self.stacked_cell.num_layers
+        hidden_dim = self.stacked_cell.hidden_dim
+
+        if h_initial_list is None:
+            h_initial_list = [np.zeros((batch_size, hidden_dim)) for _ in range(num_layers)]
+
+        h_states = np.zeros((batch_size, seq_len, hidden_dim))
+        h_curr_list = h_initial_list
+
+        for t in range(seq_len):
+            h_curr_list = self.stacked_cell.forward(x[:, t, :], h_curr_list)
+            h_states[:, t, :] = h_curr_list[-1] 
+        
+        return h_states, h_curr_list
