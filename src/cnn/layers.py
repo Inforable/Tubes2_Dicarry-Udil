@@ -20,11 +20,6 @@ def _get_activation(name):
 
 
 class Conv2DLayer:
-    """
-    2D Convolution with shared parameters (standard Conv2D).
-    Weights loaded from a trained Keras Conv2D layer.
-    """
-
     def __init__(self, kernel, bias, strides=(1, 1), padding='valid', activation=None):
         # kernel: [kH, kW, C_in, C_out]
         self.kernel = kernel
@@ -42,7 +37,6 @@ class Conv2DLayer:
         return np.pad(x, ((0, 0), (pad_h, pad_h), (pad_w, pad_w), (0, 0)), mode='constant')
 
     def forward(self, x):
-        # Ensure batch dim
         squeeze = x.ndim == 3
         if squeeze:
             x = x[np.newaxis]
@@ -68,12 +62,6 @@ class Conv2DLayer:
 
 
 class LocallyConnected2DLayer:
-    """
-    Locally connected 2D layer (no parameter sharing).
-    Each spatial output position has its own set of weights.
-    Weights loaded from a trained Keras LocallyConnected2D layer.
-    """
-
     def __init__(self, kernel, bias, kH, kW, strides=(1, 1), activation=None):
         # kernel: [out_rows*out_cols, kH*kW*C_in, C_out]
         # bias:   [out_rows*out_cols, C_out]
@@ -113,8 +101,6 @@ class LocallyConnected2DLayer:
 
 
 class MaxPooling2DLayer:
-    """Max pooling with sliding window."""
-
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid'):
         self.pool_h, self.pool_w = pool_size
         if strides is None:
@@ -153,8 +139,6 @@ class MaxPooling2DLayer:
 
 
 class AveragePooling2DLayer:
-    """Average pooling with sliding window."""
-
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid'):
         self.pool_h, self.pool_w = pool_size
         if strides is None:
@@ -192,8 +176,6 @@ class AveragePooling2DLayer:
 
 
 class GlobalAveragePooling2DLayer:
-    """Reduce spatial dims by computing mean over H and W."""
-
     def forward(self, x):
         squeeze = x.ndim == 3
         if squeeze:
@@ -203,8 +185,6 @@ class GlobalAveragePooling2DLayer:
 
 
 class GlobalMaxPooling2DLayer:
-    """Reduce spatial dims by computing max over H and W."""
-
     def forward(self, x):
         squeeze = x.ndim == 3
         if squeeze:
@@ -214,8 +194,6 @@ class GlobalMaxPooling2DLayer:
 
 
 class FlattenLayer:
-    """Flatten (H, W, C) → 1D vector, row-major (C order), consistent with Keras."""
-
     def forward(self, x):
         squeeze = x.ndim == 3
         if squeeze:
@@ -225,8 +203,6 @@ class FlattenLayer:
 
 
 class DenseLayer:
-    """Fully-connected (dense) layer."""
-
     def __init__(self, weights, bias, activation=None):
         # weights: [input_dim, output_dim]
         self.weights = weights
@@ -239,11 +215,6 @@ class DenseLayer:
 
 
 class BatchNormLayer:
-    """
-    Batch normalization in inference mode.
-    Applies: (x - moving_mean) / sqrt(moving_var + eps) * gamma + beta
-    """
-
     def __init__(self, gamma, beta, moving_mean, moving_var, eps=1e-3):
         self.gamma = gamma
         self.beta = beta

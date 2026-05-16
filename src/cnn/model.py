@@ -6,17 +6,7 @@ from .layers import (
     FlattenLayer, DenseLayer, BatchNormLayer,
 )
 
-
 class CNNFromScratch:
-    """
-    Wraps a trained Keras CNN model and reproduces its forward pass using
-    only NumPy-based layer implementations.
-
-    Usage:
-        scratch_model = CNNFromScratch(keras_model)
-        preds = scratch_model.predict(images_np)  # shape (N, num_classes)
-    """
-
     def __init__(self, keras_model):
         self.layers = []
         self._build(keras_model)
@@ -98,16 +88,6 @@ class CNNFromScratch:
                 print(f"[CNNFromScratch] Skipping unsupported layer: {cls_name}")
 
     def predict(self, x, batch_size=32):
-        """
-        Run forward propagation on input images.
-
-        Args:
-            x (np.ndarray): Input array, shape (N, H, W, C) or (H, W, C).
-            batch_size (int): Number of images to process at once.
-
-        Returns:
-            np.ndarray: Predictions, shape (N, num_classes).
-        """
         squeeze = x.ndim == 3
         if squeeze:
             x = x[np.newaxis]
