@@ -76,6 +76,7 @@ pip install -r requirements.txt
 - **NIM: 13523156**
   - Mengimplementasikan arsitektur Dense, LSTM Cell, dan *Dense Projection* *from scratch*.
   - Melakukan pelatihan LSTM, analisis perbandingan Keras vs Scratch (LSTM), dan analisis komparatif performa/kualitas *caption* antara arsitektur RNN dan LSTM.
+  - Mengimplementasikan bonus Beam Search Decoder.
 
 - **NIM: 13523160**
   - Membangun pipeline ekstraksi fitur gambar menggunakan pre-trained CNN (InceptionV3).
