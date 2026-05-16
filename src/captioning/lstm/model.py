@@ -3,13 +3,10 @@ import sys
 import os
 import json
 
-# Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from captioning.lstm.layers import EmbeddingLayer, LSTMCell, LSTMLayer
+from captioning.lstm.layers import EmbeddingLayer, StackedLSTMCell
 from shared.dense import Dense
-from captioning.common import inference as inference_utils
 from captioning.common import model_config as model_config
-
 
 class LSTMCaptioner:
     def __init__(self, vocab_size, embed_dim, hidden_dim, max_length, num_layers=1, cnn_feature_dim=2048):
@@ -20,89 +17,41 @@ class LSTMCaptioner:
         self.num_layers = num_layers
         self.cnn_feature_dim = cnn_feature_dim
 
-        # Layers
-        self.image_projection = Dense(cnn_feature_dim, embed_dim, activation=None)
+        self.image_projection = Dense(cnn_feature_dim, embed_dim, activation='relu')
         self.embedding = EmbeddingLayer(vocab_size, embed_dim)
-        
-        # Create list of LSTM cells (one per layer)
-        self.lstm_cells = []
-        for i in range(num_layers):
-            input_dim = embed_dim if i == 0 else hidden_dim
-            self.lstm_cells.append(LSTMCell(input_dim, hidden_dim))
-        
+        self.stacked_lstm = StackedLSTMCell(embed_dim, hidden_dim, num_layers)
         self.output_layer = Dense(hidden_dim, vocab_size, activation='softmax')
 
     def load_weights_from_keras(self, keras_model):
-        """Load weights from a trained Keras model."""
         self.embedding.load_weights(keras_model.get_layer('embedding').get_weights())
         self.image_projection.load_weights(keras_model.get_layer('image_projection').get_weights())
-        
-        # Load all LSTM layers
-        lstm_layers_to_load = [layer for layer in keras_model.layers if layer.name.startswith('lstm_')]
-        if len(lstm_layers_to_load) != self.num_layers:
-            raise ValueError(
-                f"Expected {self.num_layers} LSTM layers in model, but found {len(lstm_layers_to_load)}"
-            )
-        
-        for i, (lstm_cell, keras_lstm_layer) in enumerate(zip(self.lstm_cells, lstm_layers_to_load)):
-            lstm_cell.load_weights(keras_lstm_layer.get_weights())
-        
+        self.stacked_lstm.load_weights(keras_model)
         self.output_layer.load_weights(keras_model.get_layer('dense_output').get_weights())
 
     def generate_caption_greedy(self, image_features, tokenizer, max_length=None):
-        """
-        Generate caption untuk single image menggunakan greedy decoding.        
-        Args:
-            image_features (np.ndarray): CNN features untuk satu gambar, shape (1, cnn_feature_dim)
-            tokenizer: Fitted tokenizer dengan word_index dan index_word
-            max_length (int): Maksimum caption length (jika None, gunakan self.max_length)
-        Returns:
-            str: Generated caption
-        """
         if max_length is None:
             max_length = self.max_length
         
-        # Project CNN features ke embedding dimension
         img_embed = self.image_projection.forward(image_features)
         
-        # Initialize hidden and cell states for all layers
         h_states = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
         c_states = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
         
-        # Pre-inject phase: pass CNN feature through all LSTM layers
-        x = img_embed
-        for layer_idx in range(self.num_layers):
-            h_states[layer_idx], c_states[layer_idx] = self.lstm_cells[layer_idx].forward(
-                x, h_states[layer_idx], c_states[layer_idx]
-            )
-            x = h_states[layer_idx]
+        h_states, c_states = self.stacked_lstm.forward(img_embed, h_states, c_states)
         
-        # Iteratively generate tokens
         result_caption = []
         curr_token = tokenizer.word_index[tokenizer.start_token]
         
         for step in range(max_length):
-            # Embed current token
             x = self.embedding.forward(np.array([[curr_token]]))
+            x_input = x[:, 0, :] if x.ndim == 3 else x
             
-            # Pass through all LSTM layers
-            for layer_idx in range(self.num_layers):
-                x_input = x[:, 0, :] if x.ndim == 3 else x
-                h_states[layer_idx], c_states[layer_idx] = self.lstm_cells[layer_idx].forward(
-                    x_input, h_states[layer_idx], c_states[layer_idx]
-                )
-                x = h_states[layer_idx]
+            h_states, c_states = self.stacked_lstm.forward(x_input, h_states, c_states)
             
-            # Output prediction from last hidden state
             preds = self.output_layer.forward(h_states[-1])
-            
-            # Greedy sampling
             curr_token = np.argmax(preds[0])
             
-            # Convert token index to word
             word = tokenizer.index_word.get(curr_token, '')
-            
-            # Check stopping conditions
             if word == tokenizer.end_token or word == tokenizer.pad_token:
                 break
             
@@ -111,9 +60,76 @@ class LSTMCaptioner:
         
         return ' '.join(result_caption)
 
-    def generate_caption_batch(self, image_features_batch, tokenizer, max_length=None):
-        return inference_utils.generate_caption_batch(self, image_features_batch, tokenizer, max_length=max_length)
-
+    def generate_caption_beam(self, image_features, tokenizer, beam_width=3, max_length=None):
+        if max_length is None:
+            max_length = self.max_length
+        
+        img_embed = self.image_projection.forward(image_features)
+        
+        h_states_init = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
+        c_states_init = [np.zeros((1, self.hidden_dim)) for _ in range(self.num_layers)]
+        
+        h_states_init, c_states_init = self.stacked_lstm.forward(img_embed, h_states_init, c_states_init)
+        
+        start_token = tokenizer.word_index[tokenizer.start_token]
+        beam = [(0.0, [start_token], (h_states_init, c_states_init), False)]
+        final_sequences = []
+        
+        for step in range(max_length):
+            candidates = []
+            
+            for log_prob, tokens, state, _ in beam:
+                if len(tokens) > 0:
+                    curr_token = tokens[-1]
+                    x_emb = self.embedding.forward(np.array([[curr_token]]))
+                    x_input = x_emb[:, 0, :] if x_emb.ndim == 3 else x_emb
+                    
+                    h_states, c_states = state
+                    
+                    h_states_cp = [h.copy() for h in h_states]
+                    c_states_cp = [c.copy() for c in c_states]
+                    
+                    h_states_new, c_states_new = self.stacked_lstm.forward(x_input, h_states_cp, c_states_cp)
+                        
+                    preds = self.output_layer.forward(h_states_new[-1])[0]
+                    log_preds = np.log(preds + 1e-10)
+                    top_k_indices = np.argsort(log_preds)[-beam_width:][::-1]
+                    
+                    for next_token_idx in top_k_indices:
+                        next_token = int(next_token_idx)
+                        new_log_prob = log_prob + log_preds[next_token]
+                        new_tokens = tokens + [next_token]
+                        
+                        word = tokenizer.index_word.get(next_token, '')
+                        is_end = (word == tokenizer.end_token or word == tokenizer.pad_token)
+                        
+                        candidates.append((new_log_prob, new_tokens, (h_states_new, c_states_new), is_end))
+            
+            candidates.sort(reverse=True, key=lambda x: x[0])
+            completed = [c for c in candidates if c[3]]
+            ongoing = [c for c in candidates if not c[3]]
+            
+            final_sequences.extend(completed)
+            beam = ongoing[:beam_width]
+            if len(beam) == 0:
+                break
+                
+        final_sequences.extend(beam)
+        if final_sequences:
+            _, best_tokens, _, _ = max(final_sequences, key=lambda x: x[0])
+        else:
+            best_tokens = [start_token]
+        
+        result_caption = []
+        for token in best_tokens[1:]:
+            word = tokenizer.index_word.get(token, '')
+            if word == tokenizer.end_token or word == tokenizer.pad_token:
+                break
+            if word and word != tokenizer.start_token:
+                result_caption.append(word)
+                
+        return ' '.join(result_caption)
+    
     def save_model_config(self, save_path):
         return model_config.save_config(self, save_path)
 
