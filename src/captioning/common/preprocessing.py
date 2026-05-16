@@ -14,7 +14,6 @@ class Tokenizer:
         self.max_length = 0
 
     def clean_caption(self, caption):
-        """Lowercase, remove punctuation, and add start/end tokens."""
         caption = caption.lower()
         caption = re.sub(r'[^a-z0-9\s]', '', caption)
         caption = f"{self.start_token} {caption} {self.end_token}"
@@ -22,7 +21,6 @@ class Tokenizer:
         return caption
 
     def fit_on_texts(self, texts):
-        """Build vocabulary from a list of cleaned captions."""
         words = set()
         for text in texts:
             words.update(text.split())
@@ -36,7 +34,6 @@ class Tokenizer:
         self.vocab_size = len(sorted_words)
 
     def texts_to_sequences(self, texts):
-        """Convert list of captions to list of sequences of integers."""
         sequences = []
         for text in texts:
             seq = [self.word_index[word] for word in text.split() if word in self.word_index]
@@ -44,7 +41,6 @@ class Tokenizer:
         return sequences
 
     def pad_sequences(self, sequences, maxlen=None):
-        """Pad sequences to a uniform length."""
         if maxlen is None:
             maxlen = self.max_length
         
@@ -57,7 +53,6 @@ class Tokenizer:
         return padded_sequences
 
     def save(self, path):
-        """Save word_index to JSON."""
         with open(path, 'w') as f:
             json.dump({
                 'word_index': self.word_index,
@@ -66,7 +61,6 @@ class Tokenizer:
 
     @classmethod
     def load(cls, path):
-        """Load Tokenizer from JSON."""
         with open(path, 'r') as f:
             data = json.load(f)
         obj = cls()
@@ -77,7 +71,6 @@ class Tokenizer:
         return obj
 
 def load_captions(file_path):
-    """Load captions and group by image filename."""
     with open(file_path, 'r') as f:
         lines = f.readlines()[1:] # Skip header
     
@@ -93,10 +86,8 @@ def load_captions(file_path):
     return mapping
 
 def split_data(mapping, train_count=6000, val_count=1000, test_count=1000):
-    """Split image names into train, val, and test sets."""
     all_images = sorted(list(mapping.keys()))
     
-    # Use a seed for reproducibility as per spec requirements
     np.random.seed(42)
     np.random.shuffle(all_images)
     
@@ -115,15 +106,15 @@ def main():
         print(f"Error: {captions_path} not found.")
         return
 
-    # 1. Load mapping
+    # Load mapping
     mapping = load_captions(captions_path)
     print(f"Loaded {len(mapping)} images with captions.")
 
-    # 2. Split data (6000/1000/1000)
+    # Split data (6000/1000/1000)
     train_imgs, val_imgs, test_imgs = split_data(mapping)
     print(f"Split: Train={len(train_imgs)}, Val={len(val_imgs)}, Test={len(test_imgs)}")
 
-    # 3. Build vocabulary from training set only
+    # Build vocabulary from training set
     tokenizer = Tokenizer()
     train_captions = []
     for img_id in train_imgs:
@@ -134,7 +125,20 @@ def main():
     print(f"Vocabulary size: {tokenizer.vocab_size}")
     print(f"Max caption length: {tokenizer.max_length}")
 
-    # 4. Save tokenizer and split info
+    print("\n--- Running Preprocessing Sanity Check ---")
+    sample_text = mapping[train_imgs[0]][0]
+    cleaned = tokenizer.clean_caption(sample_text)
+    seq = tokenizer.texts_to_sequences([cleaned])
+    padded = tokenizer.pad_sequences(seq)
+    
+    print(f"Original Text : {sample_text}")
+    print(f"Cleaned Text  : {cleaned}")
+    print(f"Sequence IDs  : {seq[0]}")
+    print(f"Padded Shape  : {padded.shape}")
+    print(f"Padded Array  : {padded[0][:10]}... (truncated)")
+    print("------------------------------------------\n")
+
+    # Save tokenizer and split info
     tokenizer.save(os.path.join(save_dir, "tokenizer.json"))
     
     splits = {

@@ -5,16 +5,13 @@ from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_i
 from tensorflow.keras.models import Model
 import sys
 
-# Add src to path to import cnn utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from cnn.utils import extract_and_save_features
-
 
 def resolve_project_root():
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 def main():
-    # 1. Setup paths
     project_root = resolve_project_root()
     images_dir = os.path.join(project_root, "data", "flickr8k", "images")
     save_dir = os.path.join(project_root, "data", "flickr8k")
@@ -31,10 +28,10 @@ def main():
 
     os.makedirs(save_dir, exist_ok=True)
 
-    # Initialize Pretrained Model (InceptionV3 recommended)
+    # Initialize Pretrained Model
     base_model = InceptionV3(weights='imagenet', include_top=False, pooling='avg')
     model = Model(inputs=base_model.input, outputs=base_model.output)
-    model.trainable = False  # Freeze weights
+    model.trainable = False
     
     # Get all image files
     image_files = sorted([f for f in os.listdir(images_dir) if f.endswith(('.jpg', '.jpeg', '.png'))])
@@ -43,7 +40,7 @@ def main():
         return
     image_paths = [os.path.join(images_dir, f) for f in image_files]
     
-    # Create and save index mapping (filename -> index)
+    # Create and save index mapping
     index_mapping = {filename: i for i, filename in enumerate(image_files)}
     with open(index_path, 'w') as f:
         json.dump(index_mapping, f)

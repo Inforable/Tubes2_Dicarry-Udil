@@ -1,7 +1,6 @@
 import json
 
 def save_config(obj, save_path):
-    """Save minimal model configuration."""
     config = {
         'vocab_size': getattr(obj, 'vocab_size', None),
         'embed_dim': getattr(obj, 'embed_dim', None),
@@ -13,6 +12,5 @@ def save_config(obj, save_path):
         json.dump(config, f, indent=2)
 
 def load_config(path):
-    """Load config JSON and return dict."""
     with open(path, 'r') as f:
         return json.load(f)
